@@ -2,99 +2,146 @@
 
 namespace nepster\modules\installer;
 
+use yii\base\Exception;
+use yii\base\InvalidConfigException;
+use yii\base\InvalidParamException;
 use yii\helpers\Console;
+use yii\helpers\Json;
 use yii\log\Logger;
 use Yii;
 
 /**
- * Install yii2 base modules
+ * Yii2 extensions installer
  */
 class Installer extends \yii\console\Controller
 {
     /**
-     * @var string
+     * @var array
      */
-    public $template = null;
+    private $_install = [];
 
     /**
-     * @var string
-     */
-    public $from = "@vendor/nepster-web/yii2-module-{module}/demo";
-
-    /**
-     * @var string
-     */
-    public $to = "@common/modules/{module}";
-
-    /**
-     * @var string
-     */
-    public $namespace = "common\\modules\\{module}";
-
-    /**
-     * @var string
-     */
-    public $controller = "yii\\base\Controller";
-
-    /**
-     * Установка модуля
+     * Ввод данных
      */
     public function actionIndex()
     {
-        $module = $this->prompt('Enter module name:');
+        try {
+            $installFile = 'install.json';
+            $path = $this->prompt('Enter path to module install file:');
+            $path = Yii::getAlias($path);
+            if (!file_exists($path . '/' . $installFile)) {
+                throw new InvalidParamException($path . '/' . $installFile . ' file not exist');
+            }
+            $install = @file_get_contents($path . '/' . $installFile);
+            $install = Json::decode($install);
 
-        $this->from = str_replace('{module}', $module, $this->from);
-        $this->to = str_replace('{module}', $module, $this->to);
-        $this->namespace = str_replace('{module}', $module, $this->namespace);
+            if (!isset($install['name'])) {
+                throw new InvalidConfigException('Install config name not found');
+            }
 
-        $from = $this->prompt('Module path [' . $this->from . ']:');
-        if ($from) {
-            $this->from = $from;
+            if (!isset($install['copy'])) {
+                throw new InvalidConfigException('Install config copy not found');
+            }
+
+            if (!is_array($install['copy'])) {
+                throw new InvalidConfigException('Install config copy must be array');
+            }
+
+            if (!isset($install['settings'])) {
+                throw new InvalidConfigException('Install config settings not found');
+            }
+
+            if (!is_array($install['settings'])) {
+                throw new InvalidConfigException('Install config settings must be array');
+            }
+
+            $this->_install = $install;
+            $this->set();
+        }
+        catch (\Exception $e) {
+            $this->stdout($e->getMessage() . PHP_EOL, Console::FG_RED);
+        }
+    }
+
+    /**
+     * Установка конфигурации
+     */
+    protected function set()
+    {
+        // Копирование файлов
+        $copyArray = [];
+
+        foreach ($this->_install['copy'] as $from => $to) {
+            $_to = $this->prompt('Copy from ' . $from . ' to [' . $to . ']:');
+            if ($_to) {
+                $to = $_to;
+            }
+            $copyArray[Yii::getAlias($from)] = Yii::getAlias($to);
         }
 
-        $to = $this->prompt('Copy to [' . $this->to . ']:');
-        if ($to) {
-            $this->to = $to;
+        // Замена настроек
+        $settingsArray = [];
+
+        foreach ($this->_install['settings'] as $name => $setting) {
+            $_setting = $this->prompt($name . ' [' . $setting . ']:');
+            if (!$_setting) {
+                $_setting = $setting;
+            }
+            $settingsArray[$name] = [
+                $setting => $_setting
+            ];
         }
 
-        $namespace = $this->prompt('Use namespace [' . $this->namespace . ']:');
-        if ($namespace) {
-            $this->namespace = $namespace;
+        // Подтверждение установки
+        $this->stdout(PHP_EOL . ' Confirm install module [' . $this->_install['name'] .']  ' . PHP_EOL, Console::BG_BLUE);
+
+        foreach ($copyArray as $from => $to) {
+            $this->stdout(PHP_EOL . 'Copy:' . PHP_EOL);
+            $this->stdout(' - from ' . $from . PHP_EOL . ' - to '. $to);
         }
 
-        $controller = $this->prompt('Base controller [' . $this->controller . ']:');
-        if ($controller) {
-            $this->controller = $controller;
-        }
+        $this->stdout(PHP_EOL);
 
-        // Сообщение для подтверждения
-        $confirmMsg = PHP_EOL;
-        $confirmMsg .= "Install module. Please confirm:" . PHP_EOL;
-        $confirmMsg .= PHP_EOL;
-        $confirmMsg .= " From [ $this->from ]" . PHP_EOL;
-        $confirmMsg .= " To [ $this->to ]" . PHP_EOL;
-        $confirmMsg .= " Namespace [ $this->namespace ]" . PHP_EOL;
-        $confirmMsg .= " Base Controller [ $this->controller ]" . PHP_EOL;
-        $confirmMsg .= PHP_EOL;
-        $confirmMsg .= "(yes|no)";
+        foreach ($settingsArray as $name => $setting) {
+            $setting = $setting[key($setting)];
+            $this->stdout(PHP_EOL . $name .': '. $setting);
+        }
 
         // Подтверждение
-        $confirm = $this->prompt($confirmMsg, [
+        $confirm = $this->prompt(PHP_EOL . PHP_EOL . 'Confirm (yes|no)', [
             "required" => true,
             "default" => "no",
         ]);
 
-        echo PHP_EOL;
-
-        // Копирование файлов
         if (strncasecmp($confirm, "y", 1) === 0) {
-            $this->stdout("Install" . PHP_EOL, Console::FG_GREEN);
-            $fromPath = Yii::getAlias($this->from);
-            $toPath = Yii::getAlias($this->to);
-            $this->copyFiles($fromPath, $toPath);
+            $this->stdout(PHP_EOL . '  Install module [' . $this->_install['name'] .']  ' . PHP_EOL, Console::BG_GREEN);
+            $this->stdout(PHP_EOL);
+            $this->install($copyArray, $settingsArray);
         } else {
-            $this->stdout("Install cancelled" . PHP_EOL, Console::FG_RED);
+            $this->cancel();
         }
+    }
+
+    /**
+     * Установка
+     * @param $copyArray
+     * @param $settingsArray
+     */
+    protected function install(array $copyArray, array $settingsArray)
+    {
+        $copyArray = array_unique($copyArray, SORT_REGULAR);
+        $settingsArray = array_unique($settingsArray, SORT_REGULAR);
+        foreach ($copyArray as $from => $to) {
+            $this->copyFiles($from, $to, $settingsArray);
+        }
+    }
+
+    /**
+     * Отменено пользователем
+     */
+    protected function cancel()
+    {
+        throw new InvalidParamException('Canceled by the user');
     }
 
     /**
@@ -103,7 +150,7 @@ class Installer extends \yii\console\Controller
      * @param string $fromPath
      * @param string $toPath
      */
-    protected function copyFiles($fromPath, $toPath)
+    protected function copyFiles($fromPath, $toPath, $settingsArray)
     {
         // trim paths
         $fromPath = rtrim($fromPath, "/\\");
@@ -122,8 +169,12 @@ class Installer extends \yii\console\Controller
             $relativeFile = str_replace($fromPath, "", $file);
             // get file content and replace namespace
             $content = file_get_contents($file);
-            $content = str_replace("common\\modules\\users", $this->namespace, $content);
-            $content = str_replace("yii\\base\\Controller", $this->controller, $content);
+
+            foreach ($settingsArray as $setting) {
+                $from = key($setting);
+                $to = $setting[$from];
+                $content = str_replace($from, $to, $content);
+            }
 
             // save and store result
             if (file_exists($newFilePath)) {

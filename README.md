@@ -1,6 +1,10 @@
-# Yii2 BASE MODULE INSTALLER
-Установщик модулей базового приложения yii2
-Расширение позволяет скопировать необходимые файлы модуля из одной директории в другую, при этом заменить некоторые части конфигурации.
+# Yii2 EXTENSIONS INSTALLER
+Инсталлер расширений для yii2
+Расширение позволяет установить определенные пакеты с наличием файла ***install.json***. 
+
+**Внимание**
+
+Данный пакет был создан в личных целях для облегчения установки персональных модулей и расширений на базе Yii2.
 
 ## Установка
 
@@ -9,33 +13,16 @@
 Запустите в консоле
 
 ```
-php composer.phar require nepster-web/yii2-module-users: dev-master
+php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer: dev-master
 ```
 
 или добавьте
 
 ```
-"nepster-web/yii2-module-users": "dev-master"
+"nepster-web/yii2-extensions-installer": "dev-master"
 ```
 
 в файл `composer.json` в секцию require.
-
-**После успешной установки пакета:**
-
-Необходимо добавить следующий код в конфигурацию консольного приложения:
-
-```php
-    'modules' => [
-        ...
-        'users' => [
-            'class' => 'nepster\users\Module',
-            'controllerMap' => [
-                'install' => 'nepster\users\commands\InstallController',
-            ],
-        ],
-        ...
-    ],
-```
 
 
 ## Настройка
@@ -47,10 +34,6 @@ php composer.phar require nepster-web/yii2-module-users: dev-master
     ...
     'installer' => [
         'class' => 'nepster\modules\installer\Installer',
-        'from' => "@vendor/nepster-web/yii2-module-{module}/demo",
-        'to' => "@common/modules/{module}",
-        'namespace' => "common\\modules\\{module}",
-        'controller' => "yii\\base\\Controller",
     ]
     ...
 ],
