@@ -21,7 +21,7 @@ class Installer extends \yii\console\Controller
     private $_install = [];
 
     /**
-     * Ввод данных
+     * Verify install
      */
     public function actionIndex()
     {
@@ -29,36 +29,43 @@ class Installer extends \yii\console\Controller
             $installFile = 'install.json';
             $path = $this->prompt('Enter path to module install file:');
             $path = Yii::getAlias($path);
+
             if (!file_exists($path . '/' . $installFile)) {
                 throw new InvalidParamException($path . '/' . $installFile . ' file not exist');
             }
+
             $install = @file_get_contents($path . '/' . $installFile);
             $install = Json::decode($install);
 
             if (!isset($install['name'])) {
-                throw new InvalidConfigException('Install config name not found');
+                throw new InvalidConfigException('Install config `name` not found');
+            }
+
+            if (!isset($install['type'])) {
+                throw new InvalidConfigException('Install config `type` not found');
             }
 
             if (!isset($install['copy'])) {
-                throw new InvalidConfigException('Install config copy not found');
+                throw new InvalidConfigException('Install config `copy` not found');
             }
 
             if (!is_array($install['copy'])) {
-                throw new InvalidConfigException('Install config copy must be array');
+                throw new InvalidConfigException('Install config `copy` must be array');
             }
 
             if (!isset($install['settings'])) {
-                throw new InvalidConfigException('Install config settings not found');
+                throw new InvalidConfigException('Install config `settings` not found');
             }
 
             if (!is_array($install['settings'])) {
-                throw new InvalidConfigException('Install config settings must be array');
+                throw new InvalidConfigException('Install config `settings` must be array');
             }
 
             $this->_install = $install;
+
             $this->set();
-        }
-        catch (\Exception $e) {
+
+        } catch (\Exception $e) {
             $this->stdout($e->getMessage() . PHP_EOL, Console::FG_RED);
         }
     }
@@ -93,18 +100,18 @@ class Installer extends \yii\console\Controller
         }
 
         // Подтверждение установки
-        $this->stdout(PHP_EOL . ' Confirm install module [' . $this->_install['name'] .']  ' . PHP_EOL, Console::BG_BLUE);
+        $this->stdout(PHP_EOL . ' Confirm install ' . $this->_install['type'] . ' [' . $this->_install['name'] . ']  ' . PHP_EOL, Console::BG_BLUE);
 
         foreach ($copyArray as $from => $to) {
             $this->stdout(PHP_EOL . 'Copy:' . PHP_EOL);
-            $this->stdout(' - from ' . $from . PHP_EOL . ' - to '. $to);
+            $this->stdout(' - from ' . $from . PHP_EOL . ' - to ' . $to);
         }
 
         $this->stdout(PHP_EOL);
 
         foreach ($settingsArray as $name => $setting) {
             $setting = $setting[key($setting)];
-            $this->stdout(PHP_EOL . $name .': '. $setting);
+            $this->stdout(PHP_EOL . $name . ': ' . $setting);
         }
 
         // Подтверждение
@@ -114,7 +121,7 @@ class Installer extends \yii\console\Controller
         ]);
 
         if (strncasecmp($confirm, "y", 1) === 0) {
-            $this->stdout(PHP_EOL . '  Install module [' . $this->_install['name'] .']  ' . PHP_EOL, Console::BG_GREEN);
+            $this->stdout(PHP_EOL . '  Install ' . $this->_install['type'] . ' [' . $this->_install['name'] . ']  ' . PHP_EOL, Console::BG_GREEN);
             $this->stdout(PHP_EOL);
             $this->install($copyArray, $settingsArray);
         } else {

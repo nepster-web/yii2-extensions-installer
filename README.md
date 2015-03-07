@@ -13,13 +13,13 @@
 Запустите в консоле
 
 ```
-php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer: dev-master
+php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer: "*"
 ```
 
 или добавьте
 
 ```
-"nepster-web/yii2-extensions-installer": "dev-master"
+"nepster-web/yii2-extensions-installer": "*"
 ```
 
 в файл `composer.json` в секцию require.
@@ -44,3 +44,29 @@ php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer: d
 ```
 yii installer
 ```
+
+## Инсталляционный файл
+
+Для работы инсталлера потребуется ***install.json*** примерно следующего содержания:
+
+```
+{
+  "name": "users",
+  "type": "module",
+  "copy": {
+    "@vendor/nepster-web/yii2-module-users/demo": "@common/modules/users"
+  },
+  "settings": {
+    "Module namespace": "common\\modules\\users",
+    "Path to module": "@common/modules/users",
+    "Web controller": "yii\\web\\Controller"
+  }
+}
+```
+
+**Описание**
+
+`name` - Название расширения.
+`type` - Тип расширения (например module, component или др.).
+`copy` - Массив директорий, ключ-значение, откуда и куда будут скопированны файлы.
+`settings` - Массив настроек, ключ-значение, название и конфигурация по умолчанию.
