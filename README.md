@@ -13,7 +13,7 @@
 Запустите в консоле
 
 ```
-php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer: "*"
+php composer.phar require --prefer-dist nepster-web/yii2-extensions-installer "*"
 ```
 
 или добавьте
